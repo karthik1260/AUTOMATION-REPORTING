@@ -1,0 +1,126 @@
+create or replace view DEV_EDW_PRESENTATION.HYBRID_COSTING.V_PDCA_VOLUME_ABSORPTION_ANALYSIS(
+	FISCALYEARPERIOD,
+	FISCALYEAR,
+	CURRENCY,
+	CURRENCYTD,
+	CURRENCYTYPE,
+	CURTYPETD,
+	POSTINGPERIOD,
+	FISCALYEARVARIANT,
+	FISVARIANTTD,
+	MATERIAL,
+	MATERIALTD,
+	PLANT,
+	PLANTTD,
+	UNITOFMEASURE,
+	UNITMEASURETD,
+	PLANTGLOBAL,
+	ZPLANTTD,
+	MATERIAL_BUSINESS,
+	MATERIAL_BUSINESS_TD,
+	MATERIAL_SEGMENT,
+	MATERIAL_SEGMENT_TD,
+	AMOUNT,
+	QUANTITY,
+	ACTUALCOSTS,
+	ACTUALQUANTITY,
+	FINISHING_ACTUALCOST,
+	SILOXANE_ACTUALCOST,
+	ABSORPTION_ACTUALCOST,
+	FINISHING_VOLUME,
+	SILOXANE_VOLUME,
+	ABSORPTION_VOLUME,
+	COSTPERKG,
+	PLANTBUSINESS,
+	RESOURCE_BUSINESS,
+	RESOURCE_SEGMENT,
+	CATEGORY,
+	SUBCATEGORY,
+	VOLUMEPDCA,
+	RESOURCE,
+	MATERIAL_PC,
+	MATERIAL_PC_TD,
+	RESOURCE_PC,
+	RESOURCE_PC_TD,
+	RESOURCE_COSTCENTER,
+	RESOURCE_COSTCENTER_TD,
+	MANUFACTURINGORDER
+) as
+SELECT
+    CASE 
+        WHEN SUBSTR(fiscalYearPeriod, 4, 3) = '001' THEN TO_DATE(SUBSTR(fiscalYearPeriod, 8, 4) || '-01-01', 'YYYY-MM-DD')
+        WHEN SUBSTR(fiscalYearPeriod, 4, 3) = '002' THEN TO_DATE(SUBSTR(fiscalYearPeriod, 8, 4) || '-02-01', 'YYYY-MM-DD')
+        WHEN SUBSTR(fiscalYearPeriod, 4, 3) = '003' THEN TO_DATE(SUBSTR(fiscalYearPeriod, 8, 4) || '-03-01', 'YYYY-MM-DD')
+        WHEN SUBSTR(fiscalYearPeriod, 4, 3) = '004' THEN TO_DATE(SUBSTR(fiscalYearPeriod, 8, 4) || '-04-01', 'YYYY-MM-DD')
+        WHEN SUBSTR(fiscalYearPeriod, 4, 3) = '005' THEN TO_DATE(SUBSTR(fiscalYearPeriod, 8, 4) || '-05-01', 'YYYY-MM-DD')
+        WHEN SUBSTR(fiscalYearPeriod, 4, 3) = '006' THEN TO_DATE(SUBSTR(fiscalYearPeriod, 8, 4) || '-06-01', 'YYYY-MM-DD')
+        WHEN SUBSTR(fiscalYearPeriod, 4, 3) = '007' THEN TO_DATE(SUBSTR(fiscalYearPeriod, 8, 4) || '-07-01', 'YYYY-MM-DD')
+        WHEN SUBSTR(fiscalYearPeriod, 4, 3) = '008' THEN TO_DATE(SUBSTR(fiscalYearPeriod, 8, 4) || '-08-01', 'YYYY-MM-DD')
+        WHEN SUBSTR(fiscalYearPeriod, 4, 3) = '009' THEN TO_DATE(SUBSTR(fiscalYearPeriod, 8, 4) || '-09-01', 'YYYY-MM-DD')
+        WHEN SUBSTR(fiscalYearPeriod, 4, 3) = '010' THEN TO_DATE(SUBSTR(fiscalYearPeriod, 8, 4) || '-10-01', 'YYYY-MM-DD')
+        WHEN SUBSTR(fiscalYearPeriod, 4, 3) = '011' THEN TO_DATE(SUBSTR(fiscalYearPeriod, 8, 4) || '-11-01', 'YYYY-MM-DD')
+        WHEN SUBSTR(fiscalYearPeriod, 4, 3) = '012' THEN TO_DATE(SUBSTR(fiscalYearPeriod, 8, 4) || '-12-01', 'YYYY-MM-DD')
+    END AS fiscalYearPeriod, -- Converts to the first day of the fiscal month
+    SUBSTR(fiscalYear, 4, 4) AS fiscalYear, -- Extracts only the year
+    currency,
+    currencyTD,
+    currencyType,
+    curTypeTD,
+    postingPeriod,
+    fiscalYearVariant,
+    fisVariantTD,
+    material,
+    materialTD,
+    plant,
+    plantTD,
+    unitOfMeasure,
+    unitMeasureTD,
+    plantGlobal,
+    zPlantTD,
+    businessPrLv1 AS Material_Business,
+    businessPrLv1TD AS Material_Business_TD,
+    busUnitPrLv3 AS Material_Segment,
+    busUnitPrLv3TD AS Material_Segment_TD,
+    amount,
+    quantity,
+    actualCosts,
+    actualQuantity,
+    -- KPIs based on Actual Cost
+    CASE WHEN subCategory = 'Finishing'    THEN actualCosts    ELSE 0 END AS Finishing_Actualcost,
+    CASE WHEN subCategory = 'Siloxane'     THEN actualCosts    ELSE 0 END AS Siloxane_Actualcost,
+    CASE WHEN subCategory = 'Absorption'   THEN actualCosts    ELSE 0 END AS Absorption_Actualcost,
+    -- KPIs based on Actual Quantity
+    CASE WHEN subCategory = 'Finishing'    THEN ActualQuantity * -1 ELSE 0  END AS Finishing_Volume,
+    CASE WHEN subCategory = 'Siloxane'     THEN ActualQuantity * -1 ELSE 0  END AS Siloxane_Volume,
+    CASE WHEN subCategory = 'Absorption'   THEN ActualQuantity * -1 ELSE 0  END AS Absorption_Volume,
+
+    COALESCE(
+    CASE 
+        WHEN subCategory = 'Absorption' THEN CAST(actualCosts AS INT)
+    END / 
+    CASE 
+        WHEN subCategory = 'Finishing' AND CAST(ActualQuantity AS INT) <> 0 THEN CAST(ActualQuantity AS INT) * -1
+        ELSE NULL
+    END, 
+    0  -- Default value if the result is NULL
+) AS Costperkg ,
+    
+    plantBusiness,
+    pcBusiness AS Resource_Business,
+    segment AS Resource_Segment,
+    category,
+    subCategory,
+    volumePDCA,
+    resource,
+    profitcenter,
+    zprofitcentertd,
+    PROFITCENTERPRODORDER,
+    PROFITCENTERPRODORDERTD,
+    COSTCENTERPRODORDER,
+    COSTCENTERPRODORDERTD,
+    MANUFACTURINGORDER
+FROM
+    DEV_EDW_INTG.SAPBW_INT.FACT_ZPDCA_MC_PDCA_Product_Cost_Analysis_v1
+    WHERE SUBCATEGORY <> '0'
+    AND SUBSTR(fiscalYear, 4, 4) = 2024
+    AND postingPeriod = 007;

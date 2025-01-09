@@ -48,7 +48,7 @@ WITH PDCA_MAIN_VOLUME AS (
 ),
 UNPIVOTED_BUDGET_DATA AS (
     SELECT DISTINCT
-        PC,
+        
         SEGMENT,
         BUSINESS,
         PLANT_BUSINESS,
@@ -56,7 +56,7 @@ UNPIVOTED_BUDGET_DATA AS (
         FISCAL_YEAR,
         VERSION,
         COMPANY_CODE,
-        PROFIT_CENTRE_FIRST3,
+       
         UNIT,
         STATKEYFIG,
         PLANT,
@@ -81,9 +81,9 @@ UNPIVOTED_BUDGET_DATA AS (
                 WHEN PERIOD = 'QTY_P16' THEN '016'
             END, '.', FISCAL_YEAR
         ) AS PERIOD, 
-        BUDGET_QUANTITY,  
-        DATE_RECORD_ADDED_LTC
-    FROM DEV_EDW_INTG.SAP_INT.M_BUDGET_EST_VOL_SAP
+        SUM(BUDGET_QUANTITY) AS BUDGET_QUANTITY  
+        --DATE_RECORD_ADDED_LTC
+    FROM DEV_EDW_INTG.SAP_INT.V_BUDGET_EST_VOL_SAP
     UNPIVOT (
         BUDGET_QUANTITY FOR PERIOD IN (
             QTY_P1, QTY_P2, QTY_P3, QTY_P4, QTY_P5, QTY_P6, QTY_P7, QTY_P8, 
@@ -111,6 +111,38 @@ UNPIVOTED_BUDGET_DATA AS (
                 WHEN PERIOD = 'QTY_P16' THEN '016'
             END, '.', FISCAL_YEAR
         ) = '007.2024'
+        GROUP BY 
+        SEGMENT,
+    BUSINESS,
+    PLANT_BUSINESS,
+    CONTROLING_AREA,
+    FISCAL_YEAR,
+    VERSION,
+    COMPANY_CODE,
+    UNIT,
+    STATKEYFIG,
+    PLANT,
+    REP_MAT,
+    CONCAT( 
+        CASE 
+            WHEN PERIOD = 'QTY_P1' THEN '001'
+            WHEN PERIOD = 'QTY_P2' THEN '002'
+            WHEN PERIOD = 'QTY_P3' THEN '003'
+            WHEN PERIOD = 'QTY_P4' THEN '004'
+            WHEN PERIOD = 'QTY_P5' THEN '005'
+            WHEN PERIOD = 'QTY_P6' THEN '006'
+            WHEN PERIOD = 'QTY_P7' THEN '007'
+            WHEN PERIOD = 'QTY_P8' THEN '008'
+            WHEN PERIOD = 'QTY_P9' THEN '009'
+            WHEN PERIOD = 'QTY_P10' THEN '010'
+            WHEN PERIOD = 'QTY_P11' THEN '011'
+            WHEN PERIOD = 'QTY_P12' THEN '012'
+            WHEN PERIOD = 'QTY_P13' THEN '013'
+            WHEN PERIOD = 'QTY_P14' THEN '014'
+            WHEN PERIOD = 'QTY_P15' THEN '015'
+            WHEN PERIOD = 'QTY_P16' THEN '016'
+        END, '.', FISCAL_YEAR
+        )
 )
 SELECT 
     pdca.FISCALYEAR,

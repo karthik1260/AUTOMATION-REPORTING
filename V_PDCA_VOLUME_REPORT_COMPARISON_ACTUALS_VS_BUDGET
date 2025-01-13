@@ -70,7 +70,7 @@ UNPIVOTED_BUDGET_DATA AS (
         COMPANY_CODE,
        
         UNIT,
-        STATKEYFIG,
+        --STATKEYFIG,
         PLANT,
         REP_MAT AS MATERIAL,
         CONCAT( 
@@ -132,7 +132,7 @@ UNPIVOTED_BUDGET_DATA AS (
     VERSION,
     COMPANY_CODE,
     UNIT,
-    STATKEYFIG,
+    --STATKEYFIG,
     PLANT,
     REP_MAT,
     CONCAT( 

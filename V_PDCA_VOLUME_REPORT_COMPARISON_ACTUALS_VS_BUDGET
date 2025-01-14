@@ -72,7 +72,7 @@ UNPIVOTED_BUDGET_DATA AS (
         UNIT,
         --STATKEYFIG,
         PLANT,
-        REP_MAT AS MATERIAL,
+        --REP_MAT AS MATERIAL,
         CONCAT( 
             CASE 
                 WHEN PERIOD = 'QTY_P1' THEN '001'
@@ -134,7 +134,7 @@ UNPIVOTED_BUDGET_DATA AS (
     UNIT,
     --STATKEYFIG,
     PLANT,
-    REP_MAT,
+    --REP_MAT,
     CONCAT( 
         CASE 
             WHEN PERIOD = 'QTY_P1' THEN '001'

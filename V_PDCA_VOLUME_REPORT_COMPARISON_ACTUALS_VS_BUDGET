@@ -23,12 +23,10 @@ WITH PDCA_MAIN_VOLUME AS (
         SUM(ACTUALQUANTITY) * -1 AS TOTAL_ACTUALQUANTITY
     FROM PROD_EDW_INTG.SAPBW_INT.FACT_ZPDCA_MC_PDCA_PRODUCT_COST_ANALYSIS t
     WHERE 
-        CATEGORY IN('Volume','VOLUME')
-        --AND FISCALYEARPERIOD = 'GE/007.2024'
-        and SPLIT_PART(FISCALYEAR, '/', 2) = '2024'
+        CATEGORY = 'Volume'
+        AND FISCALYEARPERIOD = 'GE/007.2024'
         AND CURRENCYTYPE = 98
         AND PLANT NOT IN ('DC01','IMTT')
-        AND VERSION <> '0GV'
         AND VERSION = 0
         AND NOT EXISTS (
         SELECT 1
@@ -98,8 +96,6 @@ UNPIVOTED_BUDGET_DATA AS (
         )
     )
     WHERE VERSION = 0
-        AND FISCAL_YEAR ='2024'
-        /*
         AND CONCAT( 
             CASE 
                 WHEN PERIOD = 'QTY_P1' THEN '001'
@@ -119,7 +115,7 @@ UNPIVOTED_BUDGET_DATA AS (
                 WHEN PERIOD = 'QTY_P15' THEN '015'
                 WHEN PERIOD = 'QTY_P16' THEN '016'
             END, '.', FISCAL_YEAR
-        ) = '007.2024'*/
+        ) = '007.2024'
         GROUP BY 
         SEGMENT,
     BUSINESS,

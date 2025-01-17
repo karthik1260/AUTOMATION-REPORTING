@@ -1,0 +1,82 @@
+create or replace view DEV_EDW_PRESENTATION.HYBRID_COSTING.V_PDCA_PLANT_PRODUCTION_AREAS_WITH_KPIS_COSTPERKG(
+	COST_CENTER_GROUP,
+	MATERIAL,
+	PROFITCENTER,
+	COSTCENTER,
+	FISCALYEARPERIOD,
+	REPORTING_DATE,
+	ACTIVITYTYPE,
+	RESOURCE,
+	HOURS,
+	ACTUALACTIVITYRATE,
+	ACTUAL_COST,
+	PRODUCTION_VOLUME,
+	ACTUAL_COST_KG
+) as 
+    WITH ProductionVolumeCTE AS (
+  SELECT
+   material,
+   fiscalyearperiod,
+   COSTCENTERPRODORDER,
+    resource,
+    SUM(actualquantity) * -1 AS Production_Volume
+  FROM
+    DEV_EDW_PRESENTATION.HYBRID_COSTING.V_PDCA_PRODUCT_COST_ANALYSIS
+  WHERE
+    costelement IN ('GLBL/600000400', 'GLBL/600000500')
+    --AND fiscalyearperiod = '2024-09-01'
+    --AND COSTCENTERPRODORDER = '953240'
+    AND unitofmeasure <> '#'
+    AND currencytype = 98
+    AND version = '0'
+    --AND material = '9440'
+  GROUP BY
+    material,
+    fiscalyearperiod,
+    COSTCENTERPRODORDER,
+    resource
+)
+
+SELECT
+  
+  t3.cost_center_group,
+  t1.material,
+  t1.profitcenter,
+  t1.COSTCENTERPRODORDER as COSTCENTER,
+  t1.FISCALYEARPERIOD,
+  SUBSTR(t1.FISCALYEARPERIOD, 1, 7) AS Reporting_Date,
+  --t1.ACTIVITYTYPE,
+    SPLIT_PART(t1.ACTIVITYTYPE, '/', 2) AS ACTIVITYTYPE,
+  t1.resource,
+  --t1.costelement,
+  --t2.cost_center,
+  --t2.year_month,
+  --t2.acttyp,
+  --t2.total_quantity AS ActualQuantityHrs,
+  --t2.total_actualcost AS Actualcost,
+  --t1.unitofmeasure,
+  t1.actualquantity as Hours,
+  t2.total_price AS ActualActivityRate,
+  t2.total_price * t1.actualquantity AS Actual_cost,
+  pv.Production_Volume,
+  CASE 
+        WHEN pv.Production_Volume = 0 THEN 0  -- Or any other value you deem appropriate
+        ELSE (t2.total_price * t1.actualquantity)/pv.Production_Volume 
+    END as Actual_Cost_KG
+FROM
+  DEV_EDW_PRESENTATION.HYBRID_COSTING.V_PDCA_PRODUCT_COST_ANALYSIS t1
+INNER JOIN DEV_EDW_PRESENTATION.HYBRID_COSTING.V_PDCA_PLANT_KSS2_KSBT_COMBINED t2 ON
+  t1.COSTCENTERPRODORDER = t2.cost_center
+  AND TO_VARCHAR(t1.FISCALYEARPERIOD, 'YYYY-MM') = t2.year_month
+  AND t2.acttyp = SPLIT_PART(t1.ACTIVITYTYPE, '/', 2)
+INNER JOIN ProductionVolumeCTE pv ON
+  t1.resource = pv.resource
+  and t1.COSTCENTERPRODORDER = pv.COSTCENTERPRODORDER
+  and t1.fiscalyearperiod = pv.fiscalyearperiod
+  and t1.material = pv.material
+LEFT JOIN DEV_EDW_INTG.SAPSS4_INT.V_HOMO_NONHOMO_COST_CENTERS t3
+         ON t1.COSTCENTERPRODORDER = t3.COST_CENTER
+WHERE
+t1.unitofmeasure <> '#'
+AND t1.currencytype = 98
+AND t1.version = '0';

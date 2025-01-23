@@ -1,0 +1,176 @@
+--create or replace view DEV_EDW_PRESENTATION.HYBRID_COSTING.V_PDCA_VOLUME_REPORT_COMPARISON_ACTUALS_VS_BUDGET(
+	FISCALYEAR,
+	FISCALYEARPERIOD,
+	PLANT_BUSINESS,
+	MATERIAL_BUSINESS,
+	MATERIAL_SEGMENT,
+	PLANT,
+	ACTUAL_VOLUME,
+	BUDGET_VOLUME,
+	VARIANCE_ACTVSBUD,
+	VARIANCE_PERCENTAGE
+) as
+WITH PDCA_MAIN_VOLUME AS (
+    SELECT DISTINCT 
+        SPLIT_PART(FISCALYEAR, '/', 2) AS FISCALYEAR, 
+        SPLIT_PART(FISCALYEARPERIOD, '/', 2) AS FISCALYEARPERIOD,
+        PLANTBUSINESS AS PLANT_BUSINESS,
+        PLANT,
+        businessprlv1td AS BUSINESS,
+        --PCBUSINESS AS BUSINESS,
+        busunitprlv3td AS SEGMENT,
+        --SEGMENT,
+        SUM(ACTUALQUANTITY) * -1 AS TOTAL_ACTUALQUANTITY
+    FROM PROD_EDW_INTG.SAPBW_INT.FACT_ZPDCA_MC_PDCA_PRODUCT_COST_ANALYSIS t
+    WHERE 
+        CATEGORY IN('Volume','VOLUME')
+        --AND FISCALYEARPERIOD = 'GE/007.2024'
+        and SPLIT_PART(FISCALYEAR, '/', 2) > '2023'
+        AND CURRENCYTYPE = 98
+        AND PLANT NOT IN ('DC01','IMTT')
+        AND VERSION <> '0GV'
+        AND VERSION = 0
+        AND NOT EXISTS (
+        SELECT 1
+        FROM PROD_EDW_PRESENTATION.HYBRID_COSTING.STREAMLIT_VOLUME_REPORTING_EXCLUSIONS exclusions
+        WHERE t.PLANT = exclusions.PLANT
+          AND (
+              t.MATERIAL = exclusions.MATERIAL 
+              OR t.costcenterprodorder = exclusions.COST_CENTER
+              OR t.RESOURCE = exclusions.RESOURCE
+          )
+    )
+        /*AND NOT EXISTS (
+            SELECT 1
+            FROM DEV_EDW_INTG.SAP_INT.VOLUME_REPORTING_EXCLUSIONS_1 e
+            WHERE t.PLANT = e.Plant
+              AND LOWER(t.Resource) = LOWER(e.Resource)
+        )
+        AND NOT EXISTS (
+            SELECT 1
+            FROM DEV_EDW_INTG.SAP_INT.VOLUME_REPORTING_EXCLUSIONS_1 e
+            WHERE t.PLANT = e.Plant
+              AND t.MATERIAL = e.Material
+        )
+        AND NOT EXISTS (
+            SELECT 1
+            FROM DEV_EDW_INTG.SAP_INT.VOLUME_REPORTING_EXCLUSIONS_1 e
+            WHERE t.PLANT = e.Plant
+              AND t.COSTCENTER = e.Cost_Center
+        )*/
+    GROUP BY FISCALYEAR, FISCALYEARPERIOD, PLANTBUSINESS, PLANT,businessprlv1td,  busunitprlv3td
+),
+UNPIVOTED_BUDGET_DATA AS (
+    SELECT DISTINCT
+        SEGMENT,
+        BUSINESS,
+        PLANT_BUSINESS,
+        FISCAL_YEAR,
+        VERSION,
+        PLANT,
+        CONCAT( 
+            CASE 
+                WHEN PERIOD = 'QTY_P1' THEN '001'
+                WHEN PERIOD = 'QTY_P2' THEN '002'
+                WHEN PERIOD = 'QTY_P3' THEN '003'
+                WHEN PERIOD = 'QTY_P4' THEN '004'
+                WHEN PERIOD = 'QTY_P5' THEN '005'
+                WHEN PERIOD = 'QTY_P6' THEN '006'
+                WHEN PERIOD = 'QTY_P7' THEN '007'
+                WHEN PERIOD = 'QTY_P8' THEN '008'
+                WHEN PERIOD = 'QTY_P9' THEN '009'
+                WHEN PERIOD = 'QTY_P10' THEN '010'
+                WHEN PERIOD = 'QTY_P11' THEN '011'
+                WHEN PERIOD = 'QTY_P12' THEN '012'
+                WHEN PERIOD = 'QTY_P13' THEN '013'
+                WHEN PERIOD = 'QTY_P14' THEN '014'
+                WHEN PERIOD = 'QTY_P15' THEN '015'
+                WHEN PERIOD = 'QTY_P16' THEN '016'
+            END, '.', FISCAL_YEAR
+        ) AS PERIOD, 
+        SUM(BUDGET_QUANTITY) AS BUDGET_QUANTITY  
+        --DATE_RECORD_ADDED_LTC
+    FROM DEV_EDW_INTG.SAP_INT.V_BUDGET_EST_VOL_SAP_V1
+    UNPIVOT (
+        BUDGET_QUANTITY FOR PERIOD IN (
+            QTY_P1, QTY_P2, QTY_P3, QTY_P4, QTY_P5, QTY_P6, QTY_P7, QTY_P8, 
+            QTY_P9, QTY_P10, QTY_P11, QTY_P12, QTY_P13, QTY_P14, QTY_P15, QTY_P16
+        )
+    )
+    WHERE VERSION = 0
+        AND FISCAL_YEAR >'2023'
+        /*
+        AND CONCAT( 
+            CASE 
+                WHEN PERIOD = 'QTY_P1' THEN '001'
+                WHEN PERIOD = 'QTY_P2' THEN '002'
+                WHEN PERIOD = 'QTY_P3' THEN '003'
+                WHEN PERIOD = 'QTY_P4' THEN '004'
+                WHEN PERIOD = 'QTY_P5' THEN '005'
+                WHEN PERIOD = 'QTY_P6' THEN '006'
+                WHEN PERIOD = 'QTY_P7' THEN '007'
+                WHEN PERIOD = 'QTY_P8' THEN '008'
+                WHEN PERIOD = 'QTY_P9' THEN '009'
+                WHEN PERIOD = 'QTY_P10' THEN '010'
+                WHEN PERIOD = 'QTY_P11' THEN '011'
+                WHEN PERIOD = 'QTY_P12' THEN '012'
+                WHEN PERIOD = 'QTY_P13' THEN '013'
+                WHEN PERIOD = 'QTY_P14' THEN '014'
+                WHEN PERIOD = 'QTY_P15' THEN '015'
+                WHEN PERIOD = 'QTY_P16' THEN '016'
+            END, '.', FISCAL_YEAR
+        ) = '007.2024'*/
+        GROUP BY 
+        SEGMENT,
+    BUSINESS,
+    PLANT_BUSINESS,
+    FISCAL_YEAR,
+    VERSION,
+    PLANT,
+    CONCAT( 
+        CASE 
+            WHEN PERIOD = 'QTY_P1' THEN '001'
+            WHEN PERIOD = 'QTY_P2' THEN '002'
+            WHEN PERIOD = 'QTY_P3' THEN '003'
+            WHEN PERIOD = 'QTY_P4' THEN '004'
+            WHEN PERIOD = 'QTY_P5' THEN '005'
+            WHEN PERIOD = 'QTY_P6' THEN '006'
+            WHEN PERIOD = 'QTY_P7' THEN '007'
+            WHEN PERIOD = 'QTY_P8' THEN '008'
+            WHEN PERIOD = 'QTY_P9' THEN '009'
+            WHEN PERIOD = 'QTY_P10' THEN '010'
+            WHEN PERIOD = 'QTY_P11' THEN '011'
+            WHEN PERIOD = 'QTY_P12' THEN '012'
+            WHEN PERIOD = 'QTY_P13' THEN '013'
+            WHEN PERIOD = 'QTY_P14' THEN '014'
+            WHEN PERIOD = 'QTY_P15' THEN '015'
+            WHEN PERIOD = 'QTY_P16' THEN '016'
+        END, '.', FISCAL_YEAR
+        )
+)
+SELECT 
+    pdca.FISCALYEAR,
+    pdca.FISCALYEARPERIOD,
+    pdca.PLANT_BUSINESS,
+    pdca.BUSINESS AS MATERIAL_BUSINESS,
+    pdca.SEGMENT AS MATERIAL_SEGMENT,
+    pdca.PLANT,
+    pdca.TOTAL_ACTUALQUANTITY AS ACTUAL_VOLUME,
+    COALESCE(CAST(REPLACE(budget.BUDGET_QUANTITY, ',', '') AS NUMERIC), 0) AS BUDGET_VOLUME,
+    pdca.TOTAL_ACTUALQUANTITY - COALESCE(CAST(REPLACE(budget.BUDGET_QUANTITY, ',', '') AS NUMERIC), 0) AS VARIANCE_ACTVSBUD,
+    COALESCE(
+        CASE 
+            WHEN COALESCE(CAST(REPLACE(budget.BUDGET_QUANTITY, ',', '') AS NUMERIC), 0) = 0 THEN 0
+            ELSE 
+                (pdca.TOTAL_ACTUALQUANTITY - COALESCE(CAST(REPLACE(budget.BUDGET_QUANTITY, ',', '') AS NUMERIC), 0)) / 
+                COALESCE(CAST(REPLACE(budget.BUDGET_QUANTITY, ',', '') AS NUMERIC), 0) * 100
+        END, 0
+    ) AS VARIANCE_PERCENTAGE
+FROM PDCA_MAIN_VOLUME pdca
+LEFT JOIN UNPIVOTED_BUDGET_DATA budget
+ON pdca.FISCALYEAR = budget.FISCAL_YEAR
+   AND pdca.FISCALYEARPERIOD = budget.PERIOD
+   AND pdca.PLANT = budget.PLANT
+   AND pdca.PLANT_BUSINESS = budget.PLANT_BUSINESS
+   AND pdca.BUSINESS = budget.BUSINESS
+   AND pdca.SEGMENT = budget.SEGMENT;
